@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Material Landing Date Calculator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #1c1c1e; --panel: #2c2c2e; --elevated: #3a3a3c;
+  --border: #3a3a3c; --border-light: #48484a;
+  --text: #f2f2f7; --text-secondary: #aeaeb2;
+  --text-tertiary: #636366; --text-dim: #48484a;
+  --accent: #0a84ff; --green: #30d158; --orange: #ff9f0a;
+  --red: #ff453a; --purple: #bf5af2;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100vh; display: flex; flex-direction: column;
+  overflow: hidden; font-size: 13px;
+}
+
+/* ── Header ─────────────────────────────── */
+header {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 10px 20px; display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0;
+}
+.app-brand { display: flex; align-items: center; gap: 10px; }
+.app-icon { font-size: 20px; }
+.app-name { font-size: 14px; font-weight: 700; letter-spacing: -0.3px; }
+.app-tagline { font-size: 10px; color: var(--text-tertiary); margin-top: 1px; }
+.today-chip { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.chip-date { font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.chip-week { font-size: 10px; font-weight: 600; color: var(--accent); background: rgba(10,132,255,0.14); padding: 2px 8px; border-radius: 10px; }
+
+/* ── Layout ─────────────────────────────── */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Calendar ───────────────────────────── */
+.calendar-panel {
+  width: 55%; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-header { padding: 10px 14px 6px; flex-shrink: 0; }
+.panel-label { font-size: 10px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.2px; }
+.calendar-scroll { overflow-y: auto; flex: 1; padding: 0 10px 10px; }
+.months-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.month-card { background: var(--panel); border-radius: 7px; padding: 6px 5px; border: 1px solid transparent; }
+.month-card.has-event { border-color: var(--border-light); }
+.month-name { font-size: 9.5px; font-weight: 700; text-align: center; margin-bottom: 4px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.month-name.is-current { color: var(--accent); }
+.dow-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.dow-cell { text-align: center; font-size: 7px; color: var(--text-dim); font-weight: 600; }
+.cal-week { display: grid; grid-template-columns: repeat(7, 1fr); padding: 1px 0; border-radius: 3px; }
+.cal-week.is-start-week { background: rgba(10,132,255,0.15); }
+.cal-day { text-align: center; font-size: 8px; color: var(--text-secondary); line-height: 15px; }
+.cal-day.empty { color: transparent; }
+.cal-day .di { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; }
+.cal-day.is-today .di { background: var(--accent); color: #fff; font-weight: 800; }
+.cal-day.is-landing .di { color: #fff; font-weight: 800; }
+.cal-day.is-order .di { color: #fff; font-weight: 800; }
+.cal-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 9.5px; color: var(--text-tertiary); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-bar { width: 16px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+
+/* ── Calc Panel ─────────────────────────── */
+.calc-panel { flex: 1; display: flex; flex-direction: column; overflow-y: auto; min-width: 0; }
+.calc-section { padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.calc-section:last-child { border-bottom: none; }
+.section-title { font-size: 9.5px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+
+/* ── Start Card ─────────────────────────── */
+.start-card {
+  background: linear-gradient(135deg, rgba(10,132,255,0.16), rgba(10,132,255,0.05));
+  border: 1px solid rgba(10,132,255,0.28); border-radius: 10px; padding: 11px 13px;
+}
+.start-card.manual {
+  background: linear-gradient(135deg, rgba(48,209,88,0.16), rgba(48,209,88,0.05));
+  border-color: rgba(48,209,88,0.35);
+}
+.start-eyebrow { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+.start-card.manual .start-eyebrow { color: var(--green); }
+.start-date-text { font-size: 15px; font-weight: 700; margin-top: 3px; letter-spacing: -0.3px; }
+.start-badge {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  color: var(--accent); background: rgba(10,132,255,0.14);
+  padding: 2px 7px; border-radius: 9px; margin-top: 4px;
+}
+.start-card.manual .start-badge { color: var(--green); background: rgba(48,209,88,0.14); }
+.week-selectors {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.07); flex-wrap: wrap;
+}
+.week-selectors label { font-size: 9.5px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+.week-selectors select, .target-select {
+  background: var(--elevated); border: 1px solid var(--border-light);
+  border-radius: 7px; color: var(--text); font-size: 11px; font-weight: 600;
+  padding: 5px 7px; outline: none; cursor: pointer; font-family: inherit;
+  -webkit-appearance: none; appearance: none; transition: border-color 0.15s;
+}
+.week-selectors select:focus { border-color: var(--accent); }
+.reset-btn {
+  margin-left: auto; background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.25);
+  color: var(--red); font-size: 10px; font-weight: 600; padding: 4px 9px;
+  border-radius: 6px; cursor: pointer; font-family: inherit; white-space: nowrap;
+}
+.reset-btn:hover { background: rgba(255,69,58,0.22); }
+
+/* ── Two-way Calculator ─────────────────── */
+.two-way { display: flex; gap: 8px; }
+.calc-col {
+  flex: 1; background: var(--elevated); border-radius: 10px;
+  padding: 11px 12px; display: flex; flex-direction: column; gap: 8px;
+  min-width: 0;
+}
+.calc-col-title {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; display: flex; align-items: center; gap: 5px;
+}
+.calc-col-title.fwd { color: var(--green); }
+.calc-col-title.rev { color: var(--orange); }
+
+/* LT input */
+.lt-rows { display: flex; flex-direction: column; gap: 6px; }
+.lt-row { display: flex; align-items: center; gap: 5px; }
+.color-bar { width: 3px; height: 28px; border-radius: 2px; flex-shrink: 0; }
+.lt-box {
+  display: flex; align-items: center; flex: 1;
+  background: var(--panel); border: 1px solid var(--border-light);
+  border-radius: 7px; padding: 4px 6px; gap: 3px;
+  transition: border-color 0.15s;
+}
+.lt-box:focus-within { border-color: var(--accent); }
+.lt-box input {
+  flex: 1; background: transparent; border: none; color: var(--text);
+  font-size: 13px; font-weight: 700; outline: none; text-align: center;
+  font-family: inherit; min-width: 0;
+}
+.lt-box input::placeholder { color: var(--text-dim); font-weight: 400; font-size: 10px; }
+.lt-box input::-webkit-inner-spin-button, .lt-box input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.lt-unit { font-size: 8.5px; color: var(--text-tertiary); font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+.del-btn {
+  background: rgba(255,69,58,0.1); border: none; color: var(--red);
+  width: 24px; height: 24px; border-radius: 5px; cursor: pointer;
+  font-size: 15px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; line-height: 1;
+}
+.del-btn:hover { background: rgba(255,69,58,0.22); }
+.add-btn-sm {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  width: 100%; padding: 6px; background: rgba(10,132,255,0.07);
+  border: 1px dashed rgba(10,132,255,0.3); border-radius: 7px;
+  color: var(--accent); font-size: 11px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+}
+.add-btn-sm:hover { background: rgba(10,132,255,0.14); }
+
+/* Reverse inputs */
+.rev-inputs { display: flex; flex-direction: column; gap: 6px; }
+.rev-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.rev-row label { font-size: 9.5px; color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; white-space: nowrap; }
+.target-select:focus { border-color: var(--orange); }
+
+/* ── Result Cards ───────────────────────── */
+.result-cards { display: flex; gap: 8px; }
+.result-card {
+  flex: 1; border-radius: 10px; padding: 11px 12px;
+  border-left: 3px solid; animation: fadeIn 0.2s ease; min-width: 0;
+}
+.result-card.fwd { background: rgba(48,209,88,0.08); border-left-color: var(--green); }
+.result-card.rev { background: rgba(255,159,10,0.08); border-left-color: var(--orange); }
+@keyframes fadeIn { from { opacity:0; transform: translateY(3px); } to { opacity:1; transform:none; } }
+.result-eyebrow { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.result-card.fwd .result-eyebrow { color: var(--green); }
+.result-card.rev .result-eyebrow { color: var(--orange); }
+.result-mw { font-size: 13px; font-weight: 800; letter-spacing: -0.3px; margin-top: 3px; line-height: 1.2; }
+.result-card.fwd .result-mw { color: var(--green); }
+.result-card.rev .result-mw { color: var(--orange); }
+.result-exact { font-size: 9.5px; color: var(--text-tertiary); margin-top: 2px; }
+.result-detail { font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+
+.empty-card {
+  flex: 1; background: var(--elevated); border-radius: 10px;
+  padding: 16px 12px; display: flex; align-items: center; justify-content: center;
+  text-align: center; color: var(--text-dim); font-size: 11px; line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-brand">
+    <div class="app-icon">📦</div>
+    <div>
+      <div class="app-name">Material Landing Date Calculator</div>
+      <div class="app-tagline">Supply Chain · Lead Time Planning</div>
+    </div>
+  </div>
+  <div class="today-chip">
+    <div class="chip-date" id="headerDate"></div>
+    <div class="chip-week" id="headerWeek"></div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Calendar -->
+  <div class="calendar-panel">
+    <div class="panel-header">
+      <span class="panel-label" id="calYearLabel"></span>
+    </div>
+    <div class="calendar-scroll">
+      <div class="months-grid" id="calendarGrid"></div>
+    </div>
+    <div class="cal-legend" id="calLegend"></div>
+  </div>
+
+  <!-- Calculator -->
+  <div class="calc-panel">
+
+    <!-- Start Week -->
+    <div class="calc-section">
+      <div class="section-title">Start / Reference Week</div>
+      <div class="start-card" id="startCard">
+        <div class="start-eyebrow" id="startEyebrow">Today</div>
+        <div class="start-date-text" id="startDateText"></div>
+        <div class="start-badge" id="startBadge"></div>
+        <div class="week-selectors">
+          <label>Month</label>
+          <select id="selMonth" onchange="onStartChange()"></select>
+          <label>Week</label>
+          <select id="selWeek" onchange="onStartChange()">
+            <option value="1">Wk 1</option>
+            <option value="2">Wk 2</option>
+            <option value="3">Wk 3</option>
+            <option value="4">Wk 4</option>
+            <option value="5">Wk 5</option>
+          </select>
+          <button class="reset-btn" onclick="resetToToday()">↺ Today</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forward Section -->
+    <div class="calc-section" style="border-left: 3px solid var(--green);">
+      <div class="section-title" style="color:var(--green);">➡ Forward &nbsp;·&nbsp; Start + LT → Landing Date</div>
+      <div class="lt-rows" id="fwdLtRows"></div>
+      <button class="add-btn-sm" onclick="addFwdRow()" style="margin-top:8px;">＋ Add Lead Time</button>
+      <div style="margin-top:10px;" id="fwdResult"></div>
+    </div>
+
+    <!-- Reverse Section -->
+    <div class="calc-section" style="border-left: 3px solid var(--orange);">
+      <div class="section-title" style="color:var(--orange);">⬅ Reverse &nbsp;·&nbsp; In-Hand Date − LT → Order By</div>
+      <div class="rev-inputs">
+        <div class="rev-row">
+          <label>In-Hand Month</label>
+          <select class="target-select" id="targetMonth" onchange="refreshResults()"></select>
+          <label>Week</label>
+          <select class="target-select" id="targetWeek" onchange="refreshResults()">
+            <option value="1">Wk 1</option>
+            <option value="2">Wk 2</option>
+            <option value="3">Wk 3</option>
+            <option value="4">Wk 4</option>
+            <option value="5">Wk 5</option>
+          </select>
+        </div>
+        <div class="rev-row" style="margin-top:6px;">
+          <label>Lead Time</label>
+          <div class="lt-box" style="border-color:rgba(255,159,10,0.4);">
+            <input type="number" id="revLT" min="1" max="104" placeholder="weeks" oninput="refreshResults()"/>
+            <span class="lt-unit">wks</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;" id="revResult"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────
+const TODAY = new Date();
+TODAY.setHours(0,0,0,0);
+const YEAR = TODAY.getFullYear();
+const MONTHS_FULL  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS_SHORT   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const PALETTE      = ['#30d158','#5ac8fa','#bf5af2','#ff6b6b','#ffd60a','#64d2ff','#ff375f'];
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let startMonth = TODAY.getMonth();
+let startWeek  = Math.ceil(TODAY.getDate() / 7);
+let isManual   = false;
+let fwdRows    = [{ id: 1, lt: '' }];
+let nextId     = 2;
+
+// ─────────────────────────────────────────
+// DATE UTILS
+// ─────────────────────────────────────────
+const wom       = d     => Math.ceil(d.getDate() / 7);
+const wkStart   = (m,w) => new Date(YEAR, m, (w-1)*7 + 1);
+const addW      = (d,w) => { const r=new Date(d); r.setDate(r.getDate()+w*7); return r; };
+const subW      = (d,w) => { const r=new Date(d); r.setDate(r.getDate()-w*7); return r; };
+const fmtMed    = d     => d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const fmtFull   = d     => d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+const yrSfx     = d     => d.getFullYear()!==YEAR ? ` ${d.getFullYear()}` : '';
+
+// ─────────────────────────────────────────
+// INIT SELECTS
+// ─────────────────────────────────────────
+function initSelects() {
+  ['selMonth','targetMonth'].forEach(id => {
+    const s = document.getElementById(id);
+    MONTHS_FULL.forEach((m,i) => {
+      const o = document.createElement('option');
+      o.value=i; o.textContent=m; s.appendChild(o);
+    });
+  });
+  document.getElementById('selMonth').value    = startMonth;
+  document.getElementById('selWeek').value     = startWeek;
+  const def = new Date(TODAY); def.setMonth(def.getMonth()+3);
+  document.getElementById('targetMonth').value = def.getMonth();
+  document.getElementById('targetWeek').value  = wom(def);
+}
+
+// ─────────────────────────────────────────
+// HEADER
+// ─────────────────────────────────────────
+function updateHeader() {
+  document.getElementById('headerDate').textContent =
+    TODAY.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('headerWeek').textContent =
+    `Week ${Math.ceil(TODAY.getDate()/7)} of ${MONTHS_FULL[TODAY.getMonth()]}`;
+  document.getElementById('calYearLabel').textContent = `${YEAR} Calendar`;
+}
+
+// ─────────────────────────────────────────
+// START CARD
+// ─────────────────────────────────────────
+function updateStartCard() {
+  const mon  = MONTHS_FULL[startMonth];
+  const card = document.getElementById('startCard');
+  document.getElementById('startEyebrow').textContent  = isManual ? 'Custom Start' : 'Today';
+  document.getElementById('startDateText').textContent = isManual
+    ? `${mon} ${YEAR}`
+    : fmtFull(TODAY);
+  document.getElementById('startBadge').textContent    = `${mon}, Week ${startWeek}`;
+  card.classList.toggle('manual', isManual);
+}
+
+function onStartChange() {
+  startMonth = parseInt(document.getElementById('selMonth').value);
+  startWeek  = parseInt(document.getElementById('selWeek').value);
+  isManual   = !(startMonth===TODAY.getMonth() && startWeek===Math.ceil(TODAY.getDate()/7));
+  updateStartCard();
+  refreshAll();
+}
+
+function resetToToday() {
+  startMonth = TODAY.getMonth();
+  startWeek  = Math.ceil(TODAY.getDate()/7);
+  isManual   = false;
+  document.getElementById('selMonth').value = startMonth;
+  document.getElementById('selWeek').value  = startWeek;
+  updateStartCard();
+  refreshAll();
+}
+
+// ─────────────────────────────────────────
+// FORWARD ROWS
+// ─────────────────────────────────────────
+function renderFwdRows() {
+  const list = document.getElementById('fwdLtRows');
+  list.innerHTML = '';
+  fwdRows.forEach((r, idx) => {
+    const color = PALETTE[idx % PALETTE.length];
+    const row = document.createElement('div'); row.className = 'lt-row';
+    const bar = document.createElement('div'); bar.className='color-bar'; bar.style.background=color;
+    const box = document.createElement('div'); box.className='lt-box';
+    const inp = document.createElement('input');
+    inp.type='number'; inp.min='1'; inp.max='104'; inp.placeholder='weeks';
+    inp.value=r.lt;
+    inp.oninput=()=>{ r.lt=inp.value; refreshResults(); };
+    const unit=document.createElement('span'); unit.className='lt-unit'; unit.textContent='wks';
+    box.appendChild(inp); box.appendChild(unit);
+    const del=document.createElement('button'); del.className='del-btn'; del.innerHTML='×';
+    del.onclick=()=>{ fwdRows=fwdRows.length>1?fwdRows.filter(x=>x.id!==r.id):(fwdRows[0].lt='',fwdRows); renderFwdRows(); refreshResults(); };
+    row.appendChild(bar); row.appendChild(box); row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+
+function addFwdRow() { fwdRows.push({id:nextId++,lt:''}); renderFwdRows(); }
+
+// ─────────────────────────────────────────
+// RESULTS
+// ─────────────────────────────────────────
+function getFwdLandings() {
+  const base = wkStart(startMonth, startWeek);
+  return fwdRows
+    .map((r,i)=>({...r,color:PALETTE[i%PALETTE.length]}))
+    .filter(r=>r.lt!==''&&parseInt(r.lt)>0)
+    .map((r,i)=>{
+      const lt=parseInt(r.lt), date=addW(base,lt);
+      return {lt,date,color:r.color};
+    });
+}
+
+function getRevResult() {
+  const tMon=parseInt(document.getElementById('targetMonth').value);
+  const tWk =parseInt(document.getElementById('targetWeek').value);
+  const ltV =document.getElementById('revLT').value;
+  if (!ltV||parseInt(ltV)<=0) return null;
+  const lt=parseInt(ltV);
+  const targetDate=wkStart(tMon,tWk);
+  const orderDate=subW(targetDate,lt);
+  return {lt, targetDate, orderDate, tMon, tWk};
+}
+
+function refreshResults() {
+  const landings = getFwdLandings();
+  const rev      = getRevResult();
+
+  // ── Forward result ──
+  const fwdEl = document.getElementById('fwdResult');
+  fwdEl.innerHTML = '';
+  if (!landings.length) {
+    fwdEl.innerHTML = `<div class="empty-card" style="min-height:54px;">Enter a lead time to see the landing date</div>`;
+  } else {
+    landings.forEach((l,i) => {
+      const c = document.createElement('div');
+      c.className = 'result-card fwd';
+      c.style.borderLeftColor = l.color;
+      c.style.marginBottom = '6px';
+      c.innerHTML = `
+        <div class="result-eyebrow" style="color:${l.color}">Landing Date</div>
+        <div class="result-mw" style="color:${l.color}">${MONTHS_FULL[l.date.getMonth()]}${yrSfx(l.date)}, Week ${wom(l.date)}</div>
+        <div class="result-exact">${fmtMed(l.date)}</div>
+        <div class="result-detail">LT: ${l.lt} wk${l.lt!=1?'s':''} · from ${MONTHS_FULL[startMonth]}, Wk ${startWeek}</div>`;
+      fwdEl.appendChild(c);
+    });
+  }
+
+  // ── Reverse result ──
+  const revEl = document.getElementById('revResult');
+  revEl.innerHTML = '';
+  if (!rev) {
+    revEl.innerHTML = `<div class="empty-card" style="min-height:54px;">Enter a target date and LT to get the order date</div>`;
+  } else {
+    const tName  = MONTHS_FULL[rev.tMon];
+    const revCard = document.createElement('div');
+    revCard.className = 'result-card rev';
+    revCard.innerHTML = `
+      <div class="result-eyebrow">Order By</div>
+      <div class="result-mw">${MONTHS_FULL[rev.orderDate.getMonth()]}${yrSfx(rev.orderDate)}, Week ${wom(rev.orderDate)}</div>
+      <div class="result-exact">${fmtMed(rev.orderDate)}</div>
+      <div class="result-detail">To receive by ${tName}${yrSfx(rev.targetDate)}, Wk ${rev.tWk}</div>`;
+    revEl.appendChild(revCard);
+  }
+
+  renderCalendar();
+  renderLegend();
+}
+
+// ─────────────────────────────────────────
+// CALENDAR
+// ─────────────────────────────────────────
+function buildRows(mo) {
+  const fdow=new Date(YEAR,mo,1).getDay(), dim=new Date(YEAR,mo+1,0).getDate();
+  const rows=[]; let p=1-fdow;
+  while(p<=dim){const r=[];for(let c=0;c<7;c++){r.push(p>=1&&p<=dim?p:null);p++;}rows.push(r);}
+  return rows;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const landings = getFwdLandings();
+  const rev      = getRevResult();
+
+  // Build marker list for calendar
+  const markers = [];
+  landings.forEach(l => markers.push({date:l.date,color:l.color,type:'landing'}));
+  if (rev) {
+    markers.push({date:rev.targetDate, color:'#30d158', type:'landing'});
+    markers.push({date:rev.orderDate,  color:'#ff9f0a', type:'order'});
+  }
+
+  for(let m=0;m<12;m++){
+    const rows=buildRows(m);
+    const mMarkers=markers.filter(mk=>mk.date.getFullYear()===YEAR&&mk.date.getMonth()===m);
+    const card=document.createElement('div');
+    card.className='month-card'+(mMarkers.length?' has-event':'');
+    if(mMarkers.length) card.style.borderColor=mMarkers[0].color+'55';
+
+    const mn=document.createElement('div');
+    mn.className='month-name'+(m===startMonth?' is-current':'');
+    mn.textContent=MONTHS_SHORT[m]; card.appendChild(mn);
+
+    const dr=document.createElement('div'); dr.className='dow-row';
+    DAYS_SHORT.forEach(d=>{const c=document.createElement('div');c.className='dow-cell';c.textContent=d;dr.appendChild(c);});
+    card.appendChild(dr);
+
+    rows.forEach(row=>{
+      const wd=document.createElement('div'); wd.className='cal-week';
+      if(m===startMonth&&row.some(d=>d!==null&&Math.ceil(d/7)===startWeek)) wd.classList.add('is-start-week');
+      const rl=mMarkers.find(mk=>mk.type==='landing'&&row.some(d=>d===mk.date.getDate()));
+      const ro=mMarkers.find(mk=>mk.type==='order'  &&row.some(d=>d===mk.date.getDate()));
+      if(rl){wd.style.background=rl.color+'22';wd.style.borderRadius='3px';}
+      if(ro){wd.style.background=ro.color+'22';wd.style.borderRadius='3px';}
+      row.forEach(day=>{
+        const dd=document.createElement('div');
+        const di=document.createElement('span'); di.className='di';
+        di.textContent=day??'';
+        const isToday=m===TODAY.getMonth()&&day===TODAY.getDate();
+        const mkL=day!==null?mMarkers.find(mk=>mk.type==='landing'&&mk.date.getDate()===day):null;
+        const mkO=day!==null?mMarkers.find(mk=>mk.type==='order'  &&mk.date.getDate()===day):null;
+        if(isToday)      {dd.className='cal-day is-today';}
+        else if(mkL)     {dd.className='cal-day is-landing';di.style.background=mkL.color;}
+        else if(mkO)     {dd.className='cal-day is-order';  di.style.background=mkO.color;}
+        else if(day===null){dd.className='cal-day empty';}
+        else             {dd.className='cal-day';}
+        dd.appendChild(di); wd.appendChild(dd);
+      });
+      card.appendChild(wd);
+    });
+    grid.appendChild(card);
+  }
+}
+
+function renderLegend() {
+  const el=document.getElementById('calLegend');
+  const landings=getFwdLandings(), rev=getRevResult();
+  let html=`
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Today</div>
+    <div class="legend-item"><div class="legend-bar" style="background:rgba(10,132,255,0.22)"></div>Start week</div>`;
+  landings.forEach((l,i)=>{
+    html+=`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div>Landing ${landings.length>1?i+1:''}</div>`;
+  });
+  if(rev){
+    html+=`<div class="legend-item"><div class="legend-dot" style="background:#ff9f0a"></div>Order by</div>`;
+    html+=`<div class="legend-item"><div class="legend-dot" style="background:#30d158"></div>In hand</div>`;
+  }
+  el.innerHTML=html;
+}
+
+// ─────────────────────────────────────────
+// REFRESH ALL
+// ─────────────────────────────────────────
+function refreshAll() { refreshResults(); }
+
+// ─────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────
+initSelects();
+updateHeader();
+updateStartCard();
+renderFwdRows();
+refreshResults();
+</script>
+</body>
+</html>
