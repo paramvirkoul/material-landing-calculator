@@ -379,7 +379,7 @@ function updateStartCard() {
   document.getElementById('startDateText').textContent = isManual
     ? `${mon} ${YEAR}`
     : fmtFull(TODAY);
-  document.getElementById('startBadge').textContent    = `${mon}, Week ${startWeek}`;
+  document.getElementById('startBadge').textContent    = `${MONTHS_SHORT[startMonth]} W${startWeek}`;
   card.classList.toggle('manual', isManual);
 }
 
@@ -487,7 +487,7 @@ function refreshResults() {
         <div class="result-eyebrow" style="color:${l.color}">Landing Date</div>
         <div class="result-mw" style="color:${l.color}">${MONTHS_FULL[l.date.getMonth()]}${yrSfx(l.date)}, Week ${wom(l.date)}</div>
         <div class="result-exact">${fmtMed(l.date)}</div>
-        <div class="result-detail">LT: ${l.lt} wk${l.lt!=1?'s':''} · from ${MONTHS_FULL[startMonth]}, Wk ${startWeek}</div>`;
+        <div class="result-detail">LT: ${l.lt} wk${l.lt!=1?'s':''} · from ${MONTHS_SHORT[startMonth]} W${startWeek}</div>`;
       fwdEl.appendChild(c);
     });
   }
