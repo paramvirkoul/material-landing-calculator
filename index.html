@@ -332,13 +332,24 @@ let nextId     = 2;
 // ─────────────────────────────────────────
 // DATE UTILS
 // ─────────────────────────────────────────
-const wom       = d     => Math.ceil(d.getDate() / 7);
-const wkStart   = (m,w) => new Date(YEAR, m, (w-1)*7 + 1);
-const addW      = (d,w) => { const r=new Date(d); r.setDate(r.getDate()+w*7); return r; };
-const subW      = (d,w) => { const r=new Date(d); r.setDate(r.getDate()-w*7); return r; };
-const fmtMed    = d     => d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-const fmtFull   = d     => d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-const yrSfx     = d     => d.getFullYear()!==YEAR ? ` ${d.getFullYear()}` : '';
+// Week-of-month consistent with calendar grid rows (rowIdx+1)
+function womGrid(d) {
+  const firstDow = new Date(d.getFullYear(), d.getMonth(), 1).getDay();
+  return Math.floor((d.getDate() - 1 + firstDow) / 7) + 1;
+}
+// Start date of week w in month m, aligned to calendar grid
+function wkStartGrid(m, w) {
+  const firstDow = new Date(YEAR, m, 1).getDay();
+  const day = Math.max(1, (w - 1) * 7 - firstDow + 1);
+  return new Date(YEAR, m, day);
+}
+const wom     = d     => womGrid(d);
+const wkStart = (m,w) => wkStartGrid(m, w);
+const addW    = (d,w) => { const r=new Date(d); r.setDate(r.getDate()+w*7); return r; };
+const subW    = (d,w) => { const r=new Date(d); r.setDate(r.getDate()-w*7); return r; };
+const fmtMed  = d     => d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const fmtFull = d     => d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+const yrSfx   = d     => d.getFullYear()!==YEAR ? ` ${d.getFullYear()}` : '';
 
 // ─────────────────────────────────────────
 // INIT SELECTS
@@ -557,7 +568,7 @@ function renderCalendar() {
 
     rows.forEach((row, rowIdx)=>{
       const wd=document.createElement('div'); wd.className='cal-week';
-      if(m===startMonth&&row.some(d=>d!==null&&Math.ceil(d/7)===startWeek)) wd.classList.add('is-start-week');
+      if(m===startMonth && rowIdx === startWeek - 1) wd.classList.add('is-start-week');
       const rl=mMarkers.find(mk=>mk.type==='landing'&&row.some(d=>d===mk.date.getDate()));
       const ro=mMarkers.find(mk=>mk.type==='order'  &&row.some(d=>d===mk.date.getDate()));
       if(rl){wd.style.background=rl.color+'22';wd.style.borderRadius='3px';}
