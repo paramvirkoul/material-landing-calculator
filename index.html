@@ -51,9 +51,10 @@ header {
 .month-card.has-event { border-color: var(--border-light); }
 .month-name { font-size: 9.5px; font-weight: 700; text-align: center; margin-bottom: 4px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .month-name.is-current { color: var(--accent); }
-.dow-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.dow-row { display: grid; grid-template-columns: 16px repeat(7, 1fr); margin-bottom: 2px; }
 .dow-cell { text-align: center; font-size: 7px; color: var(--text-dim); font-weight: 600; }
-.cal-week { display: grid; grid-template-columns: repeat(7, 1fr); padding: 1px 0; border-radius: 3px; }
+.cal-week { display: grid; grid-template-columns: 16px repeat(7, 1fr); padding: 1px 0; border-radius: 3px; }
+.week-num { font-size: 7px; color: var(--text-dim); font-weight: 700; display: flex; align-items: center; justify-content: center; opacity: 0.7; }
 .cal-week.is-start-week { background: rgba(10,132,255,0.15); }
 .cal-day { text-align: center; font-size: 8px; color: var(--text-secondary); line-height: 15px; }
 .cal-day.empty { color: transparent; }
@@ -109,6 +110,21 @@ header {
   border-radius: 6px; cursor: pointer; font-family: inherit; white-space: nowrap;
 }
 .reset-btn:hover { background: rgba(255,69,58,0.22); }
+
+/* Date picker */
+.date-picker-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.date-picker-row label { font-size: 9.5px; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+input[type="date"] {
+  background: var(--elevated); border: 1px solid var(--border-light);
+  border-radius: 7px; color: var(--text); font-size: 11px; font-weight: 600;
+  padding: 5px 8px; outline: none; cursor: pointer; font-family: inherit;
+  color-scheme: dark;
+}
+input[type="date"]:focus { border-color: var(--accent); }
 
 /* ── Two-way Calculator ─────────────────── */
 .two-way { display: flex; gap: 8px; }
@@ -235,6 +251,10 @@ header {
         <div class="start-date-text" id="startDateText"></div>
         <div class="start-badge" id="startBadge"></div>
         <div class="week-selectors">
+          <div class="date-picker-row" style="width:100%">
+            <label>Pick Date</label>
+            <input type="date" id="datePicker" onchange="onDatePick()"/>
+          </div>
           <label>Month</label>
           <select id="selMonth" onchange="onStartChange()"></select>
           <label>Week</label>
@@ -363,10 +383,25 @@ function updateStartCard() {
   card.classList.toggle('manual', isManual);
 }
 
+function onDatePick() {
+  const val = document.getElementById('datePicker').value;
+  if (!val) return;
+  const picked = new Date(val + 'T00:00:00');
+  startMonth = picked.getMonth();
+  startWeek  = Math.ceil(picked.getDate() / 7);
+  isManual   = !(startMonth===TODAY.getMonth() && startWeek===Math.ceil(TODAY.getDate()/7));
+  document.getElementById('selMonth').value = startMonth;
+  document.getElementById('selWeek').value  = startWeek;
+  updateStartCard();
+  refreshAll();
+}
+
 function onStartChange() {
   startMonth = parseInt(document.getElementById('selMonth').value);
   startWeek  = parseInt(document.getElementById('selWeek').value);
   isManual   = !(startMonth===TODAY.getMonth() && startWeek===Math.ceil(TODAY.getDate()/7));
+  // Clear date picker when dropdowns change manually
+  document.getElementById('datePicker').value = '';
   updateStartCard();
   refreshAll();
 }
@@ -375,8 +410,9 @@ function resetToToday() {
   startMonth = TODAY.getMonth();
   startWeek  = Math.ceil(TODAY.getDate()/7);
   isManual   = false;
-  document.getElementById('selMonth').value = startMonth;
-  document.getElementById('selWeek').value  = startWeek;
+  document.getElementById('selMonth').value  = startMonth;
+  document.getElementById('selWeek').value   = startWeek;
+  document.getElementById('datePicker').value = '';
   updateStartCard();
   refreshAll();
 }
@@ -514,16 +550,21 @@ function renderCalendar() {
     mn.textContent=MONTHS_SHORT[m]; card.appendChild(mn);
 
     const dr=document.createElement('div'); dr.className='dow-row';
+    // Week number header spacer
+    const wh=document.createElement('div'); wh.className='dow-cell'; wh.textContent=''; dr.appendChild(wh);
     DAYS_SHORT.forEach(d=>{const c=document.createElement('div');c.className='dow-cell';c.textContent=d;dr.appendChild(c);});
     card.appendChild(dr);
 
-    rows.forEach(row=>{
+    rows.forEach((row, rowIdx)=>{
       const wd=document.createElement('div'); wd.className='cal-week';
       if(m===startMonth&&row.some(d=>d!==null&&Math.ceil(d/7)===startWeek)) wd.classList.add('is-start-week');
       const rl=mMarkers.find(mk=>mk.type==='landing'&&row.some(d=>d===mk.date.getDate()));
       const ro=mMarkers.find(mk=>mk.type==='order'  &&row.some(d=>d===mk.date.getDate()));
       if(rl){wd.style.background=rl.color+'22';wd.style.borderRadius='3px';}
       if(ro){wd.style.background=ro.color+'22';wd.style.borderRadius='3px';}
+
+      // Week number label — sequential per row
+      const wn=document.createElement('div'); wn.className='week-num'; wn.textContent=`W${rowIdx+1}`; wd.appendChild(wn);
       row.forEach(day=>{
         const dd=document.createElement('div');
         const di=document.createElement('span'); di.className='di';
